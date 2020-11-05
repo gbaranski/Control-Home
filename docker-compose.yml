@@ -39,8 +39,8 @@ services:
   webhooks:
     tty: true
     container_name: 'webhooks'
-    env_file:
-      - .env
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebaseConfig.json
     build:
       context: ./webhooks
       dockerfile: Dockerfile
@@ -50,32 +50,38 @@ services:
     networks:
       - backend
 
+  device_api:
+    tty: true
+    container_name: 'device_api'
+    command: npm run start'
+    restart: 'unless-stopped'
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebaseConfig.json
+    env_file:
+      - .env
+    depends_on:
+      - 'emqx'
+    build:
+      context: ./device_api
+      dockerfile: Dockerfile
+    volumes:
+      - ./device_api/src/:/app/src/
+      - ./firebaseConfig.json:/app/firebaseConfig.json
+    networks:
+      - backend
+
   auth:
     tty: true
     container_name: 'auth'
     command: npm run start
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebaseConfig.json
     env_file:
       - .env
     build:
       context: ./auth
       dockerfile: Dockerfile
     restart: 'unless-stopped'
-    volumes:
-      - ./firebaseConfig.json:/app/firebaseConfig.json
-    networks:
-      - backend
-
-  ota:
-    tty: true
-    container_name: 'ota'
-    # command: npm run start
-    entrypoint: ['echo', 'Service ota is disabled']
-    env_file:
-      - .env
-    build:
-      context: ./ota
-      dockerfile: Dockerfile
-    # restart: 'unless-stopped'
     volumes:
       - ./firebaseConfig.json:/app/firebaseConfig.json
     networks:
