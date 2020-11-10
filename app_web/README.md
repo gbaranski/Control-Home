@@ -1,57 +1,30 @@
-# Ant Design Pro
+This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-This project is initialized with [Ant Design Pro](https://pro.ant.design). Follow is the quick guide for how to use.
+## Getting Started
 
-## Environment Prepare
-
-Install `node_modules`:
+First, run the development server:
 
 ```bash
-npm install
+npm run dev
+# or
+yarn dev
 ```
 
-or
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-```bash
-yarn
-```
+You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
 
-## Provided Scripts
+## Learn More
 
-Ant Design Pro provides some useful script to help you quick start and build with web project, code style check and test.
+To learn more about Next.js, take a look at the following resources:
 
-Scripts provided in `package.json`. It's safe to modify or add additional script:
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-### Start project
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
 
-```bash
-npm start
-```
+## Deploy on Vercel
 
-### Build project
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/import?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-```bash
-npm run build
-```
-
-### Check code style
-
-```bash
-npm run lint
-```
-
-You can also use script to auto fix some lint error:
-
-```bash
-npm run lint:fix
-```
-
-### Test code
-
-```bash
-npm test
-```
-
-## More
-
-You can view full document on our [official website](https://pro.ant.design). And welcome any feedback in our [github](https://github.com/ant-design/ant-design-pro).
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
