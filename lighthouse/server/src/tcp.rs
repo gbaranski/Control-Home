@@ -24,12 +24,12 @@ async fn accept_loop(listener: TcpListener, peers: connection::Store) -> Result<
     loop {
         let (stream, address) = listener.accept().await?;
         let peers = peers.clone();
-        log::debug!("Accepted");
-        log::info!("Accepted");
+        log::info!("Connection started from: `{}`", address);
         tokio::spawn(async move {
-            connection::run(stream.into_split(), address, peers)
-                .await
-                .expect("Connection failed"); // TODO: Change that
+            match connection::run(stream.into_split(), address, peers).await {
+                Ok(()) => log::info!("Connection closed from: `{}`", address),
+                Err(err) => log::info!("Connection closed from: `{}` with error: {:?}", address, err),
+            }
         });
     }
 }

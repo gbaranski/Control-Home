@@ -24,6 +24,21 @@ impl Default for ClientID {
     }
 }
 
+impl std::str::FromStr for ClientID {
+    type Err = Box<dyn std::error::Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let vec = hex::decode(s)?;
+        let arr: [u8; 16] = vec.try_into().map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Length of resulted data is invalid",
+            )
+        })?;
+        Ok(Self { inner: arr })
+    }
+}
+
 impl Into<String> for ClientID {
     fn into(self) -> String {
         hex::encode(self.inner)
@@ -45,13 +60,13 @@ impl TryFrom<String> for ClientID {
 
 impl std::fmt::Display for ClientID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}", hex::encode(self.inner))
     }
 }
 
 impl std::fmt::Debug for ClientID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "ClientID: `{}`", self.to_string())
+        write!(f, "ClientID: `{}`", hex::encode(self.inner))
     }
 }
 

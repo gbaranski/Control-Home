@@ -180,7 +180,7 @@ pub async fn run(
         .expect("failed writing connack frame to stream");
 
     log::info!(
-        "started with client ID: `{}` from `{}`",
+        "Session started with ClientID: `{}` from `{}`",
         client_id,
         address.to_string()
     );
@@ -192,9 +192,15 @@ pub async fn run(
         .add(client_id, (response_receiver.clone(), request_sender))
         .await;
 
+    log::debug!("Added ClientID: `{}` to store", client_id);
+
     tokio::select! {
-        _ = connection_read_loop(stream_receiver, response_sender) => {},
-        _ = connection_write_loop(stream_sender, request_receiver) => {},
+        _ = connection_read_loop(stream_receiver, response_sender) => {
+            log::debug!("Stopped connection read loop");
+        },
+        _ = connection_write_loop(stream_sender, request_receiver) => {
+            log::debug!("Stopped connection write loop");
+        },
     };
 
     Ok(())
@@ -204,12 +210,20 @@ async fn connection_read_loop(
     mut stream: impl AsyncRead + Unpin,
     events: ResponseSender,
 ) -> Result<(), Error> {
+    log::debug!("Started connection read loop");
     let mut buf = BytesMut::with_capacity(4096);
+
     loop {
         let n = stream
             .read_buf(&mut buf)
             .await
             .expect("fail reading buffer");
+
+        // Connection closed
+        if n == 0 {
+            return Ok(());
+        }
+
         let resp = Response {
             data: buf[0..n].to_vec(),
         };
@@ -221,8 +235,13 @@ async fn connection_write_loop(
     mut stream: impl AsyncWrite + Unpin,
     mut events: RequestReceiver,
 ) -> Result<(), Error> {
+    log::debug!("Started connection write loop");
     loop {
-        let request = events.recv().await.unwrap(); // TODO: remove this unwrap
+        let request = match events.recv().await {
+            Some(v) => v,
+            // Channel closed
+            None => return Ok(()),
+        };
         stream
             .write(&request.data)
             .await
