@@ -1,4 +1,5 @@
-use tokio::net::{TcpListener, ToSocketAddrs};
+use std::net::SocketAddr;
+use tokio::net::TcpListener;
 
 use super::connection;
 
@@ -13,7 +14,8 @@ impl From<std::io::Error> for Error {
     }
 }
 
-pub async fn run(addr: impl ToSocketAddrs, store: connection::Store) -> Result<(), Error> {
+pub async fn run(addr: SocketAddr, store: connection::Store) -> Result<(), Error> {
+    log::info!("Starting TCP server at address: {}", addr);
     let listener = TcpListener::bind(addr).await?;
     accept_loop(listener, store).await
 }
