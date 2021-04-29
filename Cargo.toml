@@ -1,9 +1,11 @@
 [workspace]
 members = [
-  # "db",
   # "fulfillment",
   #  "token",
+  "db",
+  "cli",
   "devices/virtual",
   "lighthouse/proto",
-  "lighthouse/server"
+  "lighthouse/server",
+  "lighthouse/api",
 ]

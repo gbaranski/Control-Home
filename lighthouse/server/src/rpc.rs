@@ -22,7 +22,7 @@ async fn on_execute(
     connection_store: connection::Store,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let client_id = client_id.try_into().expect("invalid  id");
-    let conn_request = connection::Request::new(Vec::from("hello world"));
+    let conn_request = connection::Request::Execute(Vec::from("hello world"));
     let conn_resp = connection_store
         .send_request(&client_id, conn_request)
         .await
