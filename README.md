@@ -1,177 +1,182 @@
-# Houseflow
-
-[![build](https://img.shields.io/github/workflow/status/gbaranski/houseflow/CI)](https://github.com/gbaranski/houseflow/actions?query=workflow%3ACI)
+# Houseflow 
 [![commit-weekly](https://img.shields.io/github/commit-activity/w/gbaranski/houseflow)](https://github.com/gbaranski/houseflow)
 [![lines-of-code](https://img.shields.io/tokei/lines/github/gbaranski/houseflow)](https://github.com/gbaranski/houseflow)
 [![stars](https://img.shields.io/github/stars/gbaranski/houseflow?style=social)](https://github.com/gbaranski/houseflow)
 
 
-Set up, manage, and control your Houseflow devices, that includes connected home products like lights, cameras, thermostats, relays and more – all from the Houseflow app.
+Houseflow is open source home automation system, it lets you configure various devices like lights, switches, gates, sensors, and much more.
 
-# 🔴 Documentation is outdated, will update soon
+## Features
 
-- [Houseflow](#houseflow)
-  - [Get started](#get-started)
-        - [Set up Firebase](#set-up-firebase)
-  - [Documentation](#documentation)
-  - [MQTT Broker](#mqtt-broker)
-    - [Device service](#device-service)
-    - [Webhooks service](#webhooks-service)
-    - [Auth service](#auth-service)
-    - [OTA service](#ota-service)
-    - [Mobile App](#mobile-app)
-    - [Web App](#web-app)
-    - [Embedded devices](#embedded-devices)
-        - [Alarmclock](#alarmclock)
-        - [Gate](#gate)
-        - [Watermixer](#watermixer)
-        - [Lights](#lights)
-        - [Currently supported device types](#currently-supported-device-types)
-    - [Firestore database](#firestore-database)
-  - [Contributing](#contributing)
+- [x] Fast, written with high-performance languague, Rust.
+- [ ] Easy to use([issues with #ux label](https://github.com/gbaranski/houseflow/issues?q=is%3Aissue+label%3Aux+))
+- [x] CLI Client
+- [x] Integration with Google Home
+- [x] Linux support on x86-64 architecture
+- [ ] Windows support(issue [#160](https://github.com/gbaranski/houseflow/issues/160))
+- [x] ESP8266 Support 
+- [ ] ESP32 Support(issue [#161](https://github.com/gbaranski/houseflow/issues/161))
 
-## Get started
+## Architecture
 
-##### Set up Firebase
-1. Go to [Firebase Console](https://console.firebase.google.com/) and create new project
-2. Add new app to project
-   - For Web, just click Add Web App in project settings, copy configuration and paste it into /app_web/services/firebase.ts on the top
-   - For Android add new app in project settings, enter fields, Android package name must match with /app_mobile/android/app/build.gradle.android.defaultConfig.applicationId. You can check SHA-1 by using ./gradlew signingReport inside app_mobile/android. Download the config file and paste it into app_mobile/android/app/google-services.json. Check out [Flutterfire Android docs](https://firebase.flutter.dev/docs/installation/ios)
-   - For iOS add new app in project settings, refer to [Flutterfire iOS docs](https://firebase.flutter.dev/docs/installation/ios)
-3. Build Web App, go to app_web and run `npm install && npm run build`
-4. Enable Firebase Functions, Firebase Firestore(in production mode, it will be changed anyway in next step), Firebase Hosting and Firebase Authentication, install Firebase CLI tools and in root of project run `firebase deploy `
-5. Create collections called `devices` and `devices-private`, generate **UUID version 4**, in Linux/OSX by using `echo $(uuidgen) | awk '{print tolower($0)}'` or by using [UUID generator](https://www.uuidgenerator.net/version4), afterwards create document inside `devices` collection which should look like this
-**IMPORTANT**
+<img src="/docs/architecture.svg">
 
-| Value    | Description                                                                            | Type     |
-| -------- | -------------------------------------------------------------------------------------- | -------- |
-| $UUID    | With uuidv4 you previously generated                                                   | -------- |
-| data     | Leave it as empty map                                                                  | Map      |
-| geoPoint | Fill up them, they're used for checking if client is close to device                   | GeoPoint |
-| ip       | Leave it as unknown, it will be filled up when device connects                         | string   |
-| status   | Leave it as false, it will be filled up when device connects                           | bool     |
-| type     | Set it to one of [currently supported device types](#currently-supported-device-types) | string   |
-| uid      | Replace it with uuidv4, IT MUST BE SAME AS DOCUMENT NAME                               | string   |
+## Server
 
-<br>
-<img src="/docs/get_started_firestore1.png" width=200>
-<br>
+Houseflow server is splitted into few parts.
 
-Now create new document at `devices-private` collection with same document ID as previously generated uuidv4, now generate another UUID with this command `echo $(uuidgen) | awk '{print tolower($0)}'`
+- Auth, responsible for handling user logging in, signing up, refreshing access tokens, handling OAuth2 from other applications.
+- Fulfillment, responsible for handling requests device requests from WAN, e.g execute some command on a device, query state of the device and etc. It also handles requests from third-party services like Google Actions.
+- Lighthouse, responsible for allowing devices to connect from outside network and provide HTTP JSON RPC for the [fulfillment service](#fulfillment). Uses websockets for communication with devices.
 
-| Value  | Description                          | Type   |
-| ------ | ------------------------------------ | ------ |
-| $UUID  | With uuidv4 you previously generated | ------ |
-| secret | Set it to second generated UUID      | string |
+## Client
 
-<br>
-<img src="/docs/get_started_firestore2.png" width=200>
+Houseflow is designed to have many clients, and if need easily add new third-party services like Google Home, currently there are few clients supported:
 
-6. Add service account from firebase, navigate to Project Settings -> Service Accounts -> Generate new private key. Name it as `firebaseConfig.json` at put at project root.
-7. Fill up .env, you can generate JWT_KEY by using `openssl rand -base64 1024`, and filling up with output
+- Internal CLI app, located at [`core/`](./core)
+- [Google Home](https://developers.google.com/assistant/smarthome/overview)
 
-| Value               | Description                                                                                        |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| DOMAIN              | Domain address that will be used(used for finding letsencrypt cert path), only for non-dev version |
-| JWT_KEY             | `openssl rand -base64 1024`                                                                        |
-| DEVICE_API_USERNAME | `echo $(uuidgen) | awk '{print tolower($0)}`                                                       |
-| DEVICE_API_PASSWORD | Same as above                                                                                      |
+## Device
 
-8. Start the server using `docker-compose -f docker-compose.dev.yml up --build` or in production mode `docker-compose up --build`, be aware that production mode requires setting `DOMAIN` enviroment variable and creating SSL Certificate
+## ESP8266/ESP32
 
-9.  Its time to flash device, go inside `/devices/esp8266` and copy `platformio.example.ini` to `platformio.ini` and update fields. Now install [CLI version of platformio](https://docs.platformio.org/en/latest/core/) or [VSCode extension](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide). Connect device and press flash!
+Written using Arduino framework and PlatformIO.
 
-10. Give yourself permission to execute. First off open mobile app/web app and register, this will create new document at users collection, go to user document and add new `Map` inside `devices` array, it shoud look like that
+## Raspberry Pi
 
-| Value   | Description                                            | Type   |
-| ------- | ------------------------------------------------------ | ------ |
-| uid     | UID of the device we flashed                           | string |
-| execute | Allow for example opening the gate                     | bool   |
-| read    | Allow reading device data                              | bool   |
-| write   | Allow writing to device, inviting other people and etc | bool   |
+Supported via the [`devices/virtual/`](devices/virtual) crate.
 
-11. Ready, refresh the website and device should be visible. Report any problems or issues [here](https://github.com/gbaranski/houseflow)
+## Getting started
 
-## Documentation
+### Installation
 
-<img src="/docs/architecture.png">
+Installing using Cargo is recommended since it can speed up compilation by disabling default features.
 
-## MQTT Broker
+#### Cargo
 
-Houseflow uses [emqx](https://github.com/emqx/emqx) as MQTT Broker. Devices connect to it aswell as [Device service](#device-service). For authorization [Auth service](#auth-service) is being used. It sends HTTP request to [Webhooks service](#webhooks-sevice) on every connect/disconnect.
+```bash
+$ cargo install houseflow
+```
 
-### Device service
-Used to handle all requests from Web or Mobile app, communicates with them over HTTP, for authorization it is using [Firestore](#firestore-database). Redirects all HTTP requests directly to [MQTT Broker](#mqtt-broker) with specific topic, in conclusion embedded device trigger specific event
+Cargo can also build only specific features, while every other installation source, like from AUR builds all features. There are three features available during installation:
+- `client` for commands like `houseflow fulfillment`, or `houseflow auth`.
+- `server` for `houseflow server` command.
+- `device` for `houseflow device` command.
 
-<img src="https://img.shields.io/badge/Typescript---?logo=typescript&logoColor=FFFFFF&style=for-the-badge&color=007ACC">
+##### Server only
 
-### Webhooks service
-Listens to EMQX connect/disconnect events, changes device state in [Firestore](#firestore-database)
+```bash
+$ cargo install --no-default-features --feature "server" houseflow
+```
 
-<img src="https://img.shields.io/badge/Golang---?logo=Go&logoColor=FFFFFF&style=for-the-badge&color=00ADD8">
+##### Client and Device only
 
-### Auth service
+```bash
+$ cargo install --no-default-features --feature "client,device" houseflow
+```
 
-Adds device and ACL authorization for MQTT broker, prevents devices from subscribing to topic which isn't intended for them and also from connecting unknown devices.
+#### Arch Linux
+
+There is [AUR](https://aur.archlinux.org/packages/houseflow-git/) package available.
+
+### Generating configuration
+
+Generate new configuration with
+```bash
+$ houseflow config generate
+```
 
 
-<img src="https://img.shields.io/badge/Typescript---?logo=typescript&logoColor=FFFFFF&style=for-the-badge&color=007ACC">
+### Server setup
+**Only for installation using Cargo**: make sure that houseflow is built with `server` feature.
 
-### OTA service
+##### PostgreSQL setup
 
-~~Handle updates over the air for embedded devices~~. Currently not used. Updates are handled via ArduinoOTA, [related issue](https://github.com/gbaranski/houseflow/issues/128).
+1. Install PostgreSQL
+2. Run initial configuration, more info on [Arch Wiki](https://wiki.archlinux.org/title/PostgreSQL#Initial_configuration)
+3. Start `postgres` service, if using systemd
+```bash
+$ sudo systemctl start postgres
+```
+4. Create new database named `houseflow`.
+```bash
+$ createdb houseflow
+```
 
-<img src="https://img.shields.io/badge/Typescript---?logo=typescript&logoColor=FFFFFF&style=for-the-badge&color=007ACC">
+##### Redis setup
 
-### Mobile App
+1. Install Redis
+2. Start `postgres` service, if using systemd
+```bash
+$ sudo systemctl start postgres
+```
 
-Mobile app made using [Flutter](https://github.com/flutter/flutter), I picked it over React Native.
+##### Starting server
+Start server using
 
-<img src="https://img.shields.io/badge/Dart---?logo=dart&logoColor=FFFFFF&style=for-the-badge&color=0175C2">
+```bash
+$ houseflow server run
+```
+this should start server at port `6001`.
 
-<br>
-<img src="/docs/android_pixel2_dashboard.png" width="150">
-<img src="/docs/android_pixel2_device_view.png" width="150">
+##### Reachability from outside network
 
-### Web App
+Houseflow server won't be available outside localhost by default due to security concerns, to make it available, open `~/.config/houseflow/server.toml` and change `address` to `0.0.0.0:6001`.
 
-Web app made using [React](https://github.com/facebook/react) front-end library with [Antd Pro v5](https://beta-pro.ant.design/).
+### Device setup
 
-<img src="https://img.shields.io/badge/Typescript---?logo=typescript&logoColor=FFFFFF&style=for-the-badge&color=007ACC">
-<br>
-<img src="/docs/web_app.png" width="450">
+##### Registering device
 
+TODO: https://github.com/gbaranski/houseflow/issues/162
 
-### Embedded devices
+#### Starting device
 
-Currently supported devices are ESP8266, also there is a version in Node.JS. For ESP8266 I use Arduino framework and some kind of C++.
+If server is running at `127.0.0.1:6001`
 
+```bash
+$ houseflow device run
+```
+otherwise open `~/.config/houseflow/device.toml`, and change `address` to address of the server(Hint: server port also must be present, default port is `6001`).
 
-<img src="https://img.shields.io/badge/C++---?logo=C%2B%2B&logoColor=FFFFFF&style=for-the-badge&color=00599C">
+### Client setup
 
-##### Alarmclock
-Measures temperatures and wake me up.
-<br>
-<img src="/docs/alarmclock.jpg" width="150">
+#### Creating user
 
-##### Gate
-ESP01 with relay used to open or close gate remotely, closes circuit for 1s and then opens it again
+Start by registering user, you'll be prompted for credentials
+```bash
+$ houseflow auth register
+```
 
-##### Watermixer
-ESP8266 Development Board with relay to trigger mixing water, closes circuit for 1s and then opens it again
+Then log in into the account
+```bash
+$ houseflow auth login
+```
 
-##### Lights
-ESP8266 Wemos D1 board, connected with a TIP31C transistor to turn on/off and adjust intensity of lights
+Retrieve ID of currently logged user
+```bash
+$ houseflow auth status
+```
 
-##### Currently supported device types
-- [WATERMIXER](#watermixer)
-- [GATE](#gate)
-- [GARAGE](#gate)
-- [LIGHT](#lights)
+Give user access to specific device with read, write, execute
+```bash
+$ houseflow admin permit <user-id> <device-id> --read --write --execute
+```
 
-### Firestore database
+#### Manage user devices
 
-Project is using [Firestore database](https://firebase.google.com/docs/firestore) for storing devices, users and etc
+Start by syncing allowed devices with fulfillment
+```bash
+$ houseflow fulfillment sync
+```
+
+Query state of the device
+```bash
+$ houseflow fulfillment query <device-id>
+```
 
 ## Contributing
-Pull requests are welcome
+Contributors are very welcome! **No contribution is too small and all contributions are valued.**
+
+## Getting help
+
+Get in touch with me on Matrix @gbaranski:matrix.org, or via email root@gbaranski.com.
